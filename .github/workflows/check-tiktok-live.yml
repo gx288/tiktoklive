@@ -1,12 +1,12 @@
-name: Check TikTok Live & Notify + Trigger Record
+name: Check TikTok Live
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Mỗi 5 phút
-  workflow_dispatch:
+    - cron: '*/5 * * * *'  # chạy mỗi 5 phút
+  workflow_dispatch:       # cho phép chạy thủ công
 
 jobs:
-  check-and-notify:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,46 +16,37 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Python deps
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install TikTokLive python-telegram-bot requests
+          pip install TikTokLive requests
 
-      - name: Check live users & send Telegram
+      - name: Check if users are live
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TIKTOK_USERS: "charlidamelio youruser1 youruser2"  # Thay username thật, cách nhau space
+          TIKTOK_USERS: "charlidamelio youruser1 youruser2"  # thay bằng danh sách username cần theo dõi
         run: |
           python - <<EOF
-          import asyncio, os
+          import asyncio
+          import os
           from TikTokLive import TikTokLiveClient
-          from telegram import Bot
 
-          TOKEN = os.getenv("TELEGRAM_TOKEN")
-          CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
           USERS = os.getenv("TIKTOK_USERS", "").split()
 
-          bot = Bot(token=TOKEN)
-          notified = set()  # Tránh spam notify
-
-          async def check_user(user):
+          async def check_user(username):
               try:
-                  client = TikTokLiveClient(unique_id=user)
+                  client = TikTokLiveClient(unique_id=username)
                   info = await client.is_live()
-                  if info.get("status", 0) == 2 and user not in notified:
-                      msg = f"🔴 @{user} đang live ngay bây giờ! Bắt đầu ghi video..."
-                      await bot.send_message(chat_id=CHAT_ID, text=msg)
-                      print(f"New live detected for {user}")
-                      notified.add(user)
-                  elif info.get("status", 0) != 2 and user in notified:
-                      notified.remove(user)
+                  status = info.get("status", 0)
+                  if status == 2:
+                      print(f"LIVE DETECTED: @{username}")
+                  else:
+                      print(f"NOT live: @{username} (status: {status})")
               except Exception as e:
-                  print(f"Error checking {user}: {e}")
+                  print(f"Error checking @{username}: {e}")
 
-          asyncio.run(asyncio.gather(*(check_user(u) for u in USERS)))
+          async def main():
+              tasks = [check_user(user) for user in USERS]
+              await asyncio.gather(*tasks)
+
+          asyncio.run(main())
           EOF
-
-      - name: Trigger record workflow if needed
-        if: always()  # Chạy dù check fail
-        run: echo "Trigger logic here if you want auto-record, but for now manual or use separate"
