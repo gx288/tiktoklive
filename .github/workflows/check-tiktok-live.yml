@@ -23,7 +23,7 @@ jobs:
 
       - name: Check if users are live
         env:
-          TIKTOK_USERS: "charlidamelio youruser1 youruser2"  # thay bằng danh sách username cần theo dõi
+          TIKTOK_USERS: "jack.vn41"  # thay bằng danh sách username cần theo dõi
         run: |
           python - <<EOF
           import asyncio
