@@ -2,8 +2,8 @@ name: Check TikTok Live
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # chạy mỗi 5 phút
-  workflow_dispatch:       # cho phép chạy thủ công
+    - cron: '*/5 * * * *'  # Mỗi 5 phút
+  workflow_dispatch:
 
 jobs:
   check:
@@ -23,7 +23,7 @@ jobs:
 
       - name: Check if users are live
         env:
-          TIKTOK_USERS: "jack.vn41"  # thay bằng danh sách username cần theo dõi
+          TIKTOK_USERS: "jack.vn41 charlidamelio youruser2"  # Thay username thật, cách nhau space
         run: |
           python - <<EOF
           import asyncio
@@ -35,14 +35,13 @@ jobs:
           async def check_user(username):
               try:
                   client = TikTokLiveClient(unique_id=username)
-                  info = await client.is_live()
-                  status = info.get("status", 0)
-                  if status == 2:
+                  is_live_now = await client.is_live()
+                  if is_live_now:
                       print(f"LIVE DETECTED: @{username}")
                   else:
-                      print(f"NOT live: @{username} (status: {status})")
+                      print(f"NOT live: @{username}")
               except Exception as e:
-                  print(f"Error checking @{username}: {e}")
+                  print(f"Error checking @{username}: {str(e)}")
 
           async def main():
               tasks = [check_user(user) for user in USERS]
