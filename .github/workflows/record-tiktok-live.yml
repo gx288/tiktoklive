@@ -1,0 +1,32 @@
+name: Record TikTok Live
+
+on:
+  repository_dispatch:
+    types: [tiktok-live-start]
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # Max 6h, đủ cho 2-3h live
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python & deps
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt  # Nếu bạn fork repo Michele0303
+
+      - name: Record live
+        env:
+          USER: ${{ github.event.client_payload.user }}
+        run: |
+          python src/main.py -user ${{ env.USER }} -output ./recordings/
+          # Hoặc dùng ffmpeg trực tiếp nếu m3u8: ffmpeg -i "m3u8_url" -c copy output.mp4
+
+      - name: Upload to Drive/Telegram
+        uses: some-upload-action  # Thay bằng action upload Drive hoặc Telegram send file
+        # Ví dụ: dùng rclone config trước, hoặc python script send file to Telegram bot
+
+      - name: Notify done
+        run: echo "Ghi xong cho ${{ env.USER }}!"
