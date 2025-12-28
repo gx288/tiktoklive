@@ -3,11 +3,13 @@ name: Record TikTok Live
 on:
   repository_dispatch:
     types: [tiktok-live-start]
+  workflow_dispatch:  # Cho phép chạy thủ công để test
 
 jobs:
   record:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # Max 6h, đủ cho 2-3h live
+    timeout-minutes: 360  # Max 6h
+
     steps:
       - uses: actions/checkout@v4
 
@@ -15,18 +17,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install -r requirements.txt  # Nếu bạn fork repo Michele0303
 
-      - name: Record live
-        env:
-          USER: ${{ github.event.client_payload.user }}
+      - name: Install dependencies
         run: |
-          python src/main.py -user ${{ env.USER }} -output ./recordings/
-          # Hoặc dùng ffmpeg trực tiếp nếu m3u8: ffmpeg -i "m3u8_url" -c copy output.mp4
+          pip install requests  # Thêm nếu cần
 
-      - name: Upload to Drive/Telegram
-        uses: some-upload-action  # Thay bằng action upload Drive hoặc Telegram send file
-        # Ví dụ: dùng rclone config trước, hoặc python script send file to Telegram bot
+      - name: Record live (placeholder - cần tool thật)
+        env:
+          USER: ${{ github.event.client_payload.user || 'testuser' }}
+        run: |
+          mkdir -p recordings
+          echo "Placeholder: Ghi video cho ${{ env.USER }} (thay bằng lệnh thật như ffmpeg hoặc tiktok-live-recorder)" > recordings/test.mp4
 
-      - name: Notify done
-        run: echo "Ghi xong cho ${{ env.USER }}!"
+      - name: Upload recorded video as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiktok-live-${{ env.USER }}-${{ github.run_number }}
+          path: recordings/*.mp4
+          retention-days: 7
