@@ -1,4 +1,4 @@
-name: Check TikTok Live & Notify
+name: Check TikTok Live & Notify + Trigger Record
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check:
+  check-and-notify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,43 +16,46 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install deps
+      - name: Install Python deps
         run: |
-          pip install TikTokLive python-telegram-bot requests peter-evans/repository-dispatch
+          python -m pip install --upgrade pip
+          pip install TikTokLive python-telegram-bot requests
 
-      - name: Check live & trigger if new
+      - name: Check live users & send Telegram
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TIKTOK_USERS: "jack.vn41"  # Thay username ở đây (phân tách bởi dấu cách)
-          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}  # PAT cho trigger
+          TIKTOK_USERS: "charlidamelio youruser1 youruser2"  # Thay username thật, cách nhau space
         run: |
           python - <<EOF
-          import asyncio, os, json
+          import asyncio, os
           from TikTokLive import TikTokLiveClient
           from telegram import Bot
-          from repository_dispatch import dispatch
 
           TOKEN = os.getenv("TELEGRAM_TOKEN")
           CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
           USERS = os.getenv("TIKTOK_USERS", "").split()
-          REPO_TOKEN = os.getenv("REPO_TOKEN")
 
           bot = Bot(token=TOKEN)
-          notified = {}  # Để tránh spam, load từ artifact nếu cần
+          notified = set()  # Tránh spam notify
 
           async def check_user(user):
               try:
                   client = TikTokLiveClient(unique_id=user)
                   info = await client.is_live()
                   if info.get("status", 0) == 2 and user not in notified:
-                      msg = f"🔴 @{user} đang live! Bắt đầu ghi video..."
+                      msg = f"🔴 @{user} đang live ngay bây giờ! Bắt đầu ghi video..."
                       await bot.send_message(chat_id=CHAT_ID, text=msg)
-                      # Trigger workflow ghi
-                      dispatch("tiktok-live-start", client=client, token=REPO_TOKEN, repo=os.getenv("GITHUB_REPOSITORY"), event_type="tiktok-live-start", client_payload={"user": user})
-                      notified[user] = True
+                      print(f"New live detected for {user}")
+                      notified.add(user)
+                  elif info.get("status", 0) != 2 and user in notified:
+                      notified.remove(user)
               except Exception as e:
-                  print(f"Error {user}: {e}")
+                  print(f"Error checking {user}: {e}")
 
           asyncio.run(asyncio.gather(*(check_user(u) for u in USERS)))
           EOF
+
+      - name: Trigger record workflow if needed
+        if: always()  # Chạy dù check fail
+        run: echo "Trigger logic here if you want auto-record, but for now manual or use separate"
