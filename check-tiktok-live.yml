@@ -1,0 +1,58 @@
+name: Check TikTok Live & Notify
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Mỗi 5 phút
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: |
+          pip install TikTokLive python-telegram-bot requests peter-evans/repository-dispatch
+
+      - name: Check live & trigger if new
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TIKTOK_USERS: "charlidamelio youruser1 youruser2"  # Thay username ở đây
+          REPO_TOKEN: ${{ secrets.REPO_TOKEN }}  # PAT cho trigger
+        run: |
+          python - <<EOF
+          import asyncio, os, json
+          from TikTokLive import TikTokLiveClient
+          from telegram import Bot
+          from repository_dispatch import dispatch
+
+          TOKEN = os.getenv("TELEGRAM_TOKEN")
+          CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+          USERS = os.getenv("TIKTOK_USERS", "").split()
+          REPO_TOKEN = os.getenv("REPO_TOKEN")
+
+          bot = Bot(token=TOKEN)
+          notified = {}  # Để tránh spam, load từ artifact nếu cần
+
+          async def check_user(user):
+              try:
+                  client = TikTokLiveClient(unique_id=user)
+                  info = await client.is_live()
+                  if info.get("status", 0) == 2 and user not in notified:
+                      msg = f"🔴 @{user} đang live! Bắt đầu ghi video..."
+                      await bot.send_message(chat_id=CHAT_ID, text=msg)
+                      # Trigger workflow ghi
+                      dispatch("tiktok-live-start", client=client, token=REPO_TOKEN, repo=os.getenv("GITHUB_REPOSITORY"), event_type="tiktok-live-start", client_payload={"user": user})
+                      notified[user] = True
+              except Exception as e:
+                  print(f"Error {user}: {e}")
+
+          asyncio.run(asyncio.gather(*(check_user(u) for u in USERS)))
+          EOF
