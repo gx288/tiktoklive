@@ -24,7 +24,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TIKTOK_USERS: "charlidamelio youruser1 youruser2"  # Thay username ở đây
+          TIKTOK_USERS: "jack.vn41"  # Thay username ở đây (phân tách bởi dấu cách)
           REPO_TOKEN: ${{ secrets.REPO_TOKEN }}  # PAT cho trigger
         run: |
           python - <<EOF
